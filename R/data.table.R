@@ -294,17 +294,6 @@ replace_dot_alias = function(e) {
           stop("Variable '",jsub,"' is not found in calling scope. Looking in calling scope because you set with=FALSE. Also, please use .. symbol prefix and remove with=FALSE.")
       } else {
         .SD_only = jsub == quote(.SD)
-        # if (jsub == quote(.SD))
-        #   .SD_only = col_select = TRUE
-        # else {
-        #   ## need to allow for .I, .N, .GRP type of selections
-        #   cols = chmatch(as.character(jsub), names(x))
-        #   col_select = j_vector = !is.na(cols)
-        #   # if (is.na(cols)) {
-        #     # if (!as.character(jsub) %chin% c(".I", ".N", ".GRP", ".NGRP", ".BY"))
-        #       # stop("column name '",jsub,"' is not found")
-        #   # } else
-        # }
       }
     }
     if (root=="{") {
@@ -337,14 +326,6 @@ replace_dot_alias = function(e) {
         nomatch=0L
       }
     }
-    # if (root == "list") {
-    #   ## step 1, are they names
-    #   col_select = all(vapply_1b(jsub[-1L], is.name))
-    #   if (col_select) {
-    #     cols = chmatch(all.vars(jsub[-1L], functions = TRUE), names_x)
-    #     col_select = !anyNA(cols) && is.null(names(jsub[-1L]))
-    #   }
-    # }
   }
 
   # setdiff removes duplicate entries, which'll create issues with duplicated names. Use %chin% instead.
@@ -930,78 +911,11 @@ replace_dot_alias = function(e) {
         stop("When with=FALSE, j-argument should be of type logical/character/integer indicating the columns to select.") # fix for #1440.
       }
     } else if (.SD_only && !do_by && !is_join && !optimizedSubset){
-      if (do_by) { ##skipping do_by for now because performance is lacking for large number of rows. It would be nice to have a CdoGroupsSubset
-        # if (".N" %chin% ansvars) stop("The column '.N' can't be grouped because it conflicts with the special .N variable. Try setnames(DT,'.N','N') first.")
-        # if (".I" %chin% ansvars) stop("The column '.I' can't be grouped because it conflicts with the special .I variable. Try setnames(DT,'.I','I') first.")
-        # if (.SD_only) {
-          if (do_SDcols) {
-            cols = col_helper(x, substitute(.SDcols), mode = ".SDcols")
-            if (attr(cols, "negate")) cols = setdiff(cols,  which(names_x %chin% bynames))
-          } else {
-            # if (do_SDcols) warning("This j doesn't use .SD")
-            cols = chmatchdup(dupdiff(names_x, union(bynames, allbyvars)), names_x)
-          }
-        # } else {
-          # cols = chmatch(as.character(if(j_vector) jsub else jsub[-1L]), names_x)
-        # } 
-        if (!bysameorder) {
-          if (keyby) {
-            o__ = forderv(byval, sort = TRUE)
-            if (length(o__))
-              return(setDT(c(lapply(byval, function(vec) .Call(CsubsetVector, vec, o__)), .Call(CsubsetDT, x, if (is.null(irows)) o__ else irows[o__], cols)), key = names(byval)))
-            else
-              return(setDT(c(byval, .Call(CsubsetDT, x, irows, cols)), key = names(byval)))
-          } else {
-            o__ = forderv(byval, sort = keyby, retGrp = TRUE)
-            if (length(o__)) {
-              f__ = attr(o__, "starts", exact=TRUE)
-              len__ = uniqlengths(f__, xnrow)
-              firstofeachgroup = o__[f__]
-              if (length(origorder <- forderv(firstofeachgroup))) {
-                f__ = f__[origorder]
-                len__ = len__[origorder]
-              }
-              o__ = o__[vecseq(f__,len__, NULL)]
-              irows = if (is.null(irows)) o__ else irows[o__]
-              return(setDT(c(lapply(byval, function(vec) .Call(CsubsetVector, vec, o__)), .Call(CsubsetDT, x, irows, cols))))
-            } else {
-             if (is.null(irows))
-               return(setDT(c(byval, shallow(x, cols))))
-               # return(setDT(c(byval, shallow(x, cols)), key = names(byval)))
-              else
-                return(setDT(c(byval, .Call(CsubsetDT, x, irows, cols))))
-                # return(setDT(c(byval, .Call(CsubsetDT, x, irows, cols)), if (length(irows) > 1L) key = names(byval)))
-           }
-          } 
-        } else {
-          if (is.null(irows))
-            return(setDT(c(byval, shallow(x, cols)), key = names(byval)))
-          else
-            return(setDT(c(byval, .Call(CsubsetDT, x, irows, cols)), key = names(byval)))
-        }
-      }
-      # if (.SD_only) {
         cols = if (do_SDcols) col_helper(x, substitute(.SDcols), mode = ".SDcols") else seq_along(names_x)
         if (is.null(irows))
           return(shallow(x, cols))
         else
           return(.Call(CsubsetDT, x, irows, cols))
-      # } else {
-        # if (do_SDcols) warning("This j doesn't use .SD")
-        # cols = chmatch(as.character(if(j_vector) jsub else jsub[-1L]), names_x)
-      # }
-      # if (j_vector) {
-        # if (is.null(irows)) 
-          # return(x[[cols]])
-        # else 
-          # return(.Call(CsubsetVector,x[[cols]],irows) ) 
-      # } else {
-        # if (is.null(irows))
-          # return(shallow(x, cols))
-        # else
-          # return(.Call(CsubsetDT, x, irows, cols))
-      # }
-    
     } else { # with=TRUE and byjoin could be TRUE
       jvnames = NULL
       drop_dot = function(x) {
