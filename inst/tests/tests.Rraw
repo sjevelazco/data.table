@@ -5381,7 +5381,7 @@ test(1361, lapply(L, "[", Time==3L), list(L[[1L]][Time == 3L], L[[2L]][Time == 3
 # Don't set options(datatable.verbose=TRUE) here because the "running test 1362.1 ..." messages cause output to scroll away errors on CRAN checks last 13 lines
 DT <- data.table(x=c(1,1,1,2,2), y=1:5, z=6:10)
 test(1362.01, DT[, .SD, by=x, verbose=TRUE],
-  output="lapply optimization changed j from '.SD' to 'list(y, z)'")
+  output="forder.c received 5 rows and 1 columns")
 test(1362.02, DT[, c(.SD), by=x, verbose=TRUE],
   output="lapply optimization changed j from 'c(.SD)' to 'list(y, z)'")
 test(1362.03, DT[, c(.SD, lapply(.SD, sum)), by=x, verbose=TRUE],
@@ -6988,8 +6988,8 @@ test(1497, DT[, .SD, .SDcols = !c("a", "c")], DT[, !c("a", "c"), with=FALSE])
 
 # Fix for #1060
 DT = data.table(x=1, y=2, z=3, a=4, b=5, c=6)
-test(1498.1, DT[, .SD, .SDcols=c(TRUE,FALSE)], DT[, c("x", "z", "b"), with=FALSE])
-test(1498.2, DT[, .SD, .SDcols=!c(TRUE,FALSE)], DT[, !c("x", "z", "b"), with=FALSE])
+test(1498.1, DT[, .SD, .SDcols=c(TRUE,FALSE)], DT[, c("x", "z", "b"), with=FALSE], warning = "When .SDcols is a logical vector, each column should have a TRUE or FALSE entry.")
+test(1498.2, DT[, .SD, .SDcols=!c(TRUE,FALSE)], DT[, !c("x", "z", "b"), with=FALSE], warning = "When .SDcols is a logical vector, each column should have a TRUE or FALSE entry.")
 
 # Fix for #1072
 dt <- data.table(group1 = "a", group2 = "z", value  = 1)
@@ -8961,7 +8961,7 @@ test(1637.5, dt[, data.table(a, b), by = cumsum(a)], data.table(cumsum=1, a=1, b
 # when datatable.optimize<1, no optimisation of j should take place:
 options(datatable.optimize=0L)
 dt = data.table(x=1:5, y=6:10, z=c(1,1,1,2,2))
-test(1638, dt[, .SD, by=z, verbose=TRUE], output="All optimizations are turned off")
+test(1638, dt[, .SD, by=z, verbose=TRUE], output="forder.c received 5 rows and 1 columns")
 options(datatable.optimize=Inf)
 
 #1389 - split.data.table - big chunk of unit tests
@@ -16910,3 +16910,16 @@ dt = data.table(time = 1:8, v = INT(5,7,6,1,8,4,2,3))
 dt[time == 2L, v := 2L]
 dt[time == 7L, v := 7L]
 test(2140, dt[dt, on=.(time>time, v>v), .N, by=.EACHI], data.table(time=1:8, v=INT(5,2,6,1,8,4,7,3), N=INT(3,5,2,4,0,1,0,0)))
+
+# Test additional .SDcols functionality
+dt = as.data.table(lapply(1:5, c))
+test(2141.1, dt[, .SD, .SDcols = V2 - V1], error = "object 'V2' not found")
+test(2141.2, dt[, .SD, .SDcols = V1], error = "object 'V1' not found")
+test(2141.3, dt[, .SD, .SDcols = (-1L)], dt[, .(V2, V3, V4, V5)])
+V1 = "V2"
+test(2141.4, dt[, .SD, .SDcols = V1], dt[, .(V2)])
+test(2141.5, dt[, .SD, .SDcols = (V1)], dt[, .(V2)])
+test(2141.6, dt[, .SD, .SDcols = "V1":V1], error = "When selecting a range of columns in the var_1:var_2 format, quotation marks should not be used. Instead of \"V1\":V1 try V1:V1")
+test(2141.7, dt[, .SD, .SDcols = V1:V6], error = "Not all columns were found in the .SDcols column select statement: [V1:V6]")
+test(2141.8, dt[, .SD, .SDcols = c(TRUE, FALSE)], dt[, .(V1, V3, V5)], warning = "When .SDcols is a logical vector, each column should have a TRUE or FALSE entry.")
+rm(V1)
